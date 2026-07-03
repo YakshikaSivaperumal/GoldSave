@@ -67,9 +67,13 @@ def get_all_investments(
 ):
     return db.query(models.Investment).all()
 
-# Admin — approve investment (gold gets added)
+from app.notifications import (
+    sms_investment_approved,
+    sms_investment_rejected
+)
+
 @router.patch("/{investment_id}/approve", response_model=schemas.InvestmentOut)
-def approve_investment(
+async def approve_investment(
     investment_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth.require_admin)
@@ -81,14 +85,24 @@ def approve_investment(
         raise HTTPException(status_code=404, detail="Investment not found")
     if investment.payment_status != "pending":
         raise HTTPException(status_code=400, detail="Already processed")
+
     investment.payment_status = "completed"
     db.commit()
     db.refresh(investment)
+
+    # Send SMS to customer
+    user = db.query(models.User).filter(
+        models.User.id == investment.user_id
+    ).first()
+    if user and user.phone:
+        sms_investment_approved(
+            user.phone, user.name,
+            investment.amount_lkr, investment.gold_grams
+        )
     return investment
 
-# Admin — reject investment
 @router.patch("/{investment_id}/reject", response_model=schemas.InvestmentOut)
-def reject_investment(
+async def reject_investment(
     investment_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth.require_admin)
@@ -100,9 +114,20 @@ def reject_investment(
         raise HTTPException(status_code=404, detail="Investment not found")
     if investment.payment_status != "pending":
         raise HTTPException(status_code=400, detail="Already processed")
+
     investment.payment_status = "failed"
     db.commit()
     db.refresh(investment)
+
+    # Send SMS to customer
+    user = db.query(models.User).filter(
+        models.User.id == investment.user_id
+    ).first()
+    if user and user.phone:
+        sms_investment_rejected(
+            user.phone, user.name,
+            investment.amount_lkr
+        )
     return investment
 
 # Serve receipt image

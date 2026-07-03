@@ -9,8 +9,8 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    phone = Column(String(20))
-    nic = Column(String(20))
+    phone = Column(String(20), unique=True) 
+    nic = Column(String(20), unique=True) 
     role = Column(Enum("customer", "admin"), default="customer")
     created_at = Column(DateTime, default=datetime.utcnow)
 

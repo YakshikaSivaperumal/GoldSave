@@ -69,9 +69,13 @@ def get_all_redemptions(
 ):
     return db.query(models.Redemption).all()
 
-# Admin — approve a redemption
+from app.notifications import (
+    sms_redemption_approved,
+    sms_redemption_rejected
+)
+
 @router.patch("/{redemption_id}/approve", response_model=schemas.RedemptionOut)
-def approve_redemption(
+async def approve_redemption(
     redemption_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth.require_admin)
@@ -83,14 +87,23 @@ def approve_redemption(
         raise HTTPException(status_code=404, detail="Redemption not found")
     if redemption.status != "pending":
         raise HTTPException(status_code=400, detail="Already processed")
+
     redemption.status = "approved"
     db.commit()
     db.refresh(redemption)
+
+    user = db.query(models.User).filter(
+        models.User.id == redemption.user_id
+    ).first()
+    if user and user.phone:
+        sms_redemption_approved(
+            user.phone, user.name,
+            redemption.grams_requested, redemption.amount_value
+        )
     return redemption
 
-# Admin — reject a redemption
 @router.patch("/{redemption_id}/reject", response_model=schemas.RedemptionOut)
-def reject_redemption(
+async def reject_redemption(
     redemption_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth.require_admin)
@@ -102,7 +115,17 @@ def reject_redemption(
         raise HTTPException(status_code=404, detail="Redemption not found")
     if redemption.status != "pending":
         raise HTTPException(status_code=400, detail="Already processed")
+
     redemption.status = "rejected"
     db.commit()
     db.refresh(redemption)
+
+    user = db.query(models.User).filter(
+        models.User.id == redemption.user_id
+    ).first()
+    if user and user.phone:
+        sms_redemption_rejected(
+            user.phone, user.name,
+            redemption.grams_requested
+        )
     return redemption

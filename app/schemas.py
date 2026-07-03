@@ -1,13 +1,58 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
-
+from pydantic import BaseModel, EmailStr, field_validator
+from typing import Optional
+from datetime import datetime
+import re
 class UserRegister(BaseModel):
     name: str
     email: EmailStr
     password: str
     phone: Optional[str] = None
     nic: Optional[str] = None
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if len(v) < 2:
+            raise ValueError('Name must be at least 2 characters')
+        if not re.match(r'^[a-zA-Z\s]+$', v):
+            raise ValueError('Name must contain only letters')
+        return v
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        return v
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if v is None:
+            return v
+        cleaned = v.replace(' ', '')
+        patterns = [
+            r'^07[0-9]{8}$',
+            r'^\+947[0-9]{8}$',
+            r'^00947[0-9]{8}$'
+        ]
+        if not any(re.match(p, cleaned) for p in patterns):
+            raise ValueError('Enter a valid Sri Lanka phone number (e.g. 0771234567)')
+        return v
+
+    @field_validator('nic')
+    @classmethod
+    def validate_nic(cls, v):
+        if v is None:
+            return v
+        if not (re.match(r'^[0-9]{9}[VXvx]$', v) or re.match(r'^[0-9]{12}$', v)):
+            raise ValueError('Enter valid NIC (e.g. 123456789V or 200012345678)')
+        return v
 
 class UserLogin(BaseModel):
     email: EmailStr
