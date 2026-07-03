@@ -15,6 +15,8 @@ import AdminRedemptions from './pages/admin/AdminRedemptions';
 import AdminRates from './pages/admin/AdminRates';
 import AdminForecast from './pages/admin/AdminForecast';
 import AdminInvestments from './pages/admin/AdminInvestments';
+import ForgotPassword from './pages/ForgotPassword';
+
 
 // inside Routes:
 function PrivateRoute({ children }) {
@@ -39,6 +41,7 @@ function App() {
           {/* Public */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Customer */}
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

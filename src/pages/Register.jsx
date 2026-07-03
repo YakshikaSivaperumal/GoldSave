@@ -2,13 +2,17 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import {
-  getNameError, getEmailError, getPasswordError,
-  getPhoneError, getNICError
+  getNameError,
+  getEmailError,
+  getPasswordError,
+  getPhoneError,
+  getNICError
 } from '../utils/validation';
+import goldBg from '../assets/gold-bg.jpg';
 
 export default function Register() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1=form, 2=otp, 3=done
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     name: '', email: '', password: '',
     phone: '', nic: ''
@@ -17,7 +21,6 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
 
   const validate = () => {
     const newErrors = {
@@ -36,7 +39,6 @@ export default function Register() {
     setErrors({ ...errors, [field]: '' });
   };
 
-  // Step 1 — Validate form and send OTP
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -44,7 +46,6 @@ export default function Register() {
     setServerError('');
     try {
       await api.post(`/auth/send-otp?phone=${form.phone}`);
-      setOtpSent(true);
       setStep(2);
     } catch (err) {
       const detail = err.response?.data?.detail || 'Failed to send OTP';
@@ -58,21 +59,14 @@ export default function Register() {
     }
   };
 
-  // Step 2 — Verify OTP then register
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setServerError('');
     try {
-      // Verify OTP first
-      await api.post(
-        `/auth/verify-otp?phone=${form.phone}&otp=${otp}`
-      );
-
-      // Then register
+      await api.post(`/auth/verify-otp?phone=${form.phone}&otp=${otp}`);
       await api.post('/auth/register', form);
       setStep(3);
-
     } catch (err) {
       const detail = err.response?.data?.detail || 'Verification failed';
       if (detail.toLowerCase().includes('email')) {
@@ -111,11 +105,34 @@ export default function Register() {
   ];
 
   return (
-    <div className="min-h-screen bg-yellow-50 flex items-center justify-center py-8">
-      <div className="bg-white p-8 rounded-xl shadow w-full max-w-md">
+    <div
+      className="min-h-screen flex items-center justify-center py-8 relative"
+      style={{
+        backgroundImage: `url(${goldBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black bg-opacity-50" />
+
+      {/* Card */}
+      <div className="relative z-10 bg-white bg-opacity-95 p-8 rounded-xl shadow-2xl w-full max-w-md mx-4">
+
+        {/* Logo */}
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 bg-yellow-700 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-white text-2xl font-bold">G</span>
+          </div>
+          <h2 className="text-2xl font-bold text-yellow-800">Create Account</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Join GoldSave and start investing in gold
+          </p>
+        </div>
 
         {/* Step indicators */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center justify-center gap-2 mb-6">
           {['Details', 'Verify Phone', 'Done'].map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
@@ -132,90 +149,84 @@ export default function Register() {
           ))}
         </div>
 
+        {serverError && (
+          <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+            <p className="text-red-600 text-sm">{serverError}</p>
+          </div>
+        )}
+
         {/* Step 1 — Registration Form */}
         {step === 1 && (
-          <>
-            <h2 className="text-2xl font-bold text-yellow-800 mb-2">Create Account</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Join GoldSave and start investing in gold
-            </p>
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            {fields.map(field => (
+              <div key={field.key}>
+                <label className="block text-sm font-medium text-gray-600 mb-1">
+                  {field.label}
+                </label>
+                <input
+                  type={field.type}
+                  className={`w-full border rounded px-3 py-2 text-sm outline-none transition
+                    ${errors[field.key]
+                      ? 'border-red-400 bg-red-50'
+                      : 'border-gray-300 focus:border-yellow-500'}`}
+                  placeholder={field.placeholder}
+                  value={form[field.key]}
+                  onChange={e => handleChange(field.key, e.target.value)}
+                />
+                {errors[field.key] && (
+                  <p className="text-red-500 text-xs mt-1">⚠ {errors[field.key]}</p>
+                )}
+              </div>
+            ))}
 
-            {serverError && (
-              <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
-                <p className="text-red-600 text-sm">{serverError}</p>
+            {/* Password strength */}
+            {form.password && (
+              <div className="space-y-1">
+                <div className="flex gap-1">
+                  {[
+                    form.password.length >= 8,
+                    /[A-Z]/.test(form.password),
+                    /[0-9]/.test(form.password),
+                    /[^A-Za-z0-9]/.test(form.password),
+                  ].map((met, i) => (
+                    <div key={i}
+                      className={`h-1 flex-1 rounded ${met ? 'bg-green-500' : 'bg-gray-200'}`}
+                    />
+                  ))}
+                </div>
+                <div className="text-xs text-gray-400 flex gap-4">
+                  <span className={form.password.length >= 8 ? 'text-green-600' : ''}>8+ chars</span>
+                  <span className={/[A-Z]/.test(form.password) ? 'text-green-600' : ''}>Uppercase</span>
+                  <span className={/[0-9]/.test(form.password) ? 'text-green-600' : ''}>Number</span>
+                  <span className={/[^A-Za-z0-9]/.test(form.password) ? 'text-green-600' : ''}>Symbol</span>
+                </div>
               </div>
             )}
 
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              {fields.map(field => (
-                <div key={field.key}>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type}
-                    className={`w-full border rounded px-3 py-2 text-sm outline-none transition
-                      ${errors[field.key]
-                        ? 'border-red-400 bg-red-50'
-                        : 'border-gray-300 focus:border-yellow-500'}`}
-                    placeholder={field.placeholder}
-                    value={form[field.key]}
-                    onChange={e => handleChange(field.key, e.target.value)}
-                  />
-                  {errors[field.key] && (
-                    <p className="text-red-500 text-xs mt-1">⚠ {errors[field.key]}</p>
-                  )}
-                </div>
-              ))}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-yellow-700 text-white py-2 rounded hover:bg-yellow-600 text-sm font-medium disabled:opacity-50 transition"
+            >
+              {loading ? 'Sending OTP...' : 'Continue — Verify Phone'}
+            </button>
 
-              {/* Password strength */}
-              {form.password && (
-                <div className="space-y-1">
-                  <div className="flex gap-1">
-                    {[
-                      form.password.length >= 8,
-                      /[A-Z]/.test(form.password),
-                      /[0-9]/.test(form.password),
-                      /[^A-Za-z0-9]/.test(form.password),
-                    ].map((met, i) => (
-                      <div key={i}
-                        className={`h-1 flex-1 rounded ${met ? 'bg-green-500' : 'bg-gray-200'}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-yellow-700 text-white py-2 rounded hover:bg-yellow-600 text-sm font-medium disabled:opacity-50"
-              >
-                {loading ? 'Sending OTP...' : 'Continue — Verify Phone'}
-              </button>
-            </form>
-
-            <p className="text-sm text-center mt-4 text-gray-500">
+            <p className="text-sm text-center text-gray-500">
               Already have an account?{' '}
-              <Link to="/login" className="text-yellow-700 font-medium">Login</Link>
+              <Link to="/login" className="text-yellow-700 font-medium hover:underline">
+                Login
+              </Link>
             </p>
-          </>
+          </form>
         )}
 
         {/* Step 2 — OTP Verification */}
         {step === 2 && (
           <>
-            <h2 className="text-2xl font-bold text-yellow-800 mb-2">Verify Phone</h2>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-gray-500 mb-6 text-center">
               We sent a 6-digit OTP to{' '}
               <strong className="text-gray-700">{form.phone}</strong>
             </p>
-
-            {serverError && (
-              <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
-                <p className="text-red-600 text-sm">{serverError}</p>
-              </div>
-            )}
 
             <form onSubmit={handleOtpSubmit} className="space-y-4">
               <div>
@@ -225,7 +236,7 @@ export default function Register() {
                 <input
                   type="text"
                   maxLength={6}
-                  className="w-full border rounded px-3 py-3 text-center text-2xl font-bold tracking-widest outline-none focus:border-yellow-500"
+                  className="w-full border rounded px-3 py-3 text-center text-2xl font-bold tracking-widest outline-none focus:border-yellow-500 border-gray-300"
                   placeholder="000000"
                   value={otp}
                   onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
@@ -236,7 +247,7 @@ export default function Register() {
               <button
                 type="submit"
                 disabled={loading || otp.length !== 6}
-                className="w-full bg-yellow-700 text-white py-2 rounded hover:bg-yellow-600 text-sm font-medium disabled:opacity-50"
+                className="w-full bg-yellow-700 text-white py-2 rounded hover:bg-yellow-600 text-sm font-medium disabled:opacity-50 transition"
               >
                 {loading ? 'Verifying...' : 'Verify & Create Account'}
               </button>
@@ -252,7 +263,7 @@ export default function Register() {
               <button
                 onClick={resendOtp}
                 disabled={loading}
-                className="text-sm text-yellow-700 hover:text-yellow-800 font-medium"
+                className="text-sm text-yellow-700 font-medium hover:underline"
               >
                 Resend OTP
               </button>
@@ -271,11 +282,12 @@ export default function Register() {
               Welcome to GoldSave! Check your email and phone for confirmation.
             </p>
             <p className="text-xs text-gray-400 mb-6">
-              A welcome email has been sent to <strong>{form.email}</strong>
+              A welcome email has been sent to{' '}
+              <strong>{form.email}</strong>
             </p>
             <button
               onClick={() => navigate('/login')}
-              className="w-full bg-yellow-700 text-white py-2 rounded hover:bg-yellow-600 text-sm font-medium"
+              className="w-full bg-yellow-700 text-white py-2 rounded hover:bg-yellow-600 text-sm font-medium transition"
             >
               Login to Your Account
             </button>
