@@ -178,3 +178,16 @@ Best regards,
 GoldSave Team
 """
     )
+
+
+def send_password_reset_otp(phone: str) -> bool:
+    try:
+        otp = generate_otp(phone)
+        send_sms(phone,
+            f"GoldSave: Your password reset code is: {otp}. "
+            f"Valid for 10 minutes. Do not share this code."
+        )
+        return True
+    except Exception as e:
+        print(f"Password reset OTP error: {e}")
+        return False

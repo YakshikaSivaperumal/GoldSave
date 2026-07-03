@@ -149,3 +149,24 @@ class InvestmentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ForgotPasswordRequest(BaseModel):
+    phone: str
+
+class VerifyResetOTP(BaseModel):
+    phone: str
+    otp: str
+
+class ResetPassword(BaseModel):
+    phone: str
+    otp: str
+    new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        return v

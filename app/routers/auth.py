@@ -116,3 +116,52 @@ async def register(user_data: schemas.UserRegister, db: Session = Depends(get_db
         sms_registration_success(new_user.phone, new_user.name)
 
     return new_user
+
+from app.notifications import send_password_reset_otp
+
+@router.post("/forgot-password")
+def forgot_password(
+    data: schemas.ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    # Check phone exists
+    user = db.query(models.User).filter(
+        models.User.phone == data.phone
+    ).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="No account found with this phone number"
+        )
+    success = send_password_reset_otp(data.phone)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send OTP"
+        )
+    return {"message": "OTP sent to your phone number"}
+
+@router.post("/reset-password")
+def reset_password(
+    data: schemas.ResetPassword,
+    db: Session = Depends(get_db)
+):
+    # Verify OTP
+    if not verify_otp(data.phone, data.otp):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired OTP"
+        )
+
+    # Find user
+    user = db.query(models.User).filter(
+        models.User.phone == data.phone
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update password
+    user.password = auth.hash_password(data.new_password)
+    db.commit()
+
+    return {"message": "Password reset successfully"}
